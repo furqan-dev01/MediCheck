@@ -42,6 +42,9 @@ class _InventoryDashboardState extends State<InventoryScreen> {
   String? _restockNeededSelectedCategory; // New filter state for Restock Needed
   RangeValues? _restockNeededPriceRange; // New filter state for Restock Needed
 
+  int _restockCurrentPage = 0;
+  final int _restockItemsPerPage = 4; // Display 4 items per page for restock
+
   @override
   void initState() {
     super.initState();
@@ -1181,13 +1184,11 @@ class _InventoryDashboardState extends State<InventoryScreen> {
                           _currentPage--;
                         });
                       }),
-                      for (int i = 0; i < totalPages; i++)
-                        _buildPaginationNumberButton(
-                            (i + 1).toString(), i == _currentPage, () {
-                          setState(() {
-                            _currentPage = i;
-                          });
-                        }),
+                      ..._buildPageNumberButtons(_currentPage, totalPages, (i) {
+                        setState(() {
+                          _currentPage = i;
+                        });
+                      }),
                       _buildPaginationButton(
                           'Next', _currentPage < totalPages - 1, () {
                         setState(() {
@@ -1220,7 +1221,7 @@ class _InventoryDashboardState extends State<InventoryScreen> {
       // For now, price filtering for RestockItem will not work if RestockItem itself doesn't have price.
 
       // --- ADD THESE PRINT STATEMENTS ---
-      print('Filtering Restock Needed - Item: ${item.name}');
+      print('Filtering Restock Needed - Item: [38;5;2m${item.name}[0m');
       print(
           '  Matches Category: $matchesCategory (Selected: "$_restockNeededSelectedCategory")');
       print(
@@ -1229,6 +1230,16 @@ class _InventoryDashboardState extends State<InventoryScreen> {
 
       return matchesCategory && matchesPrice;
     }).toList();
+
+    // Pagination for restock needed
+    final int restockTotalPages = (filteredRestockItems.length / _restockItemsPerPage).ceil();
+    final int restockStartIndex = _restockCurrentPage * _restockItemsPerPage;
+    int restockEndIndex = restockStartIndex + _restockItemsPerPage;
+    if (restockEndIndex > filteredRestockItems.length) {
+      restockEndIndex = filteredRestockItems.length;
+    }
+    final List<RestockItem> displayedRestockItems =
+        filteredRestockItems.sublist(restockStartIndex, restockEndIndex);
 
     return Container(
       decoration: BoxDecoration(
@@ -1352,9 +1363,9 @@ class _InventoryDashboardState extends State<InventoryScreen> {
             child: ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: filteredRestockItems.length,
+              itemCount: displayedRestockItems.length,
               itemBuilder: (context, index) {
-                final item = filteredRestockItems[index];
+                final item = displayedRestockItems[index];
                 return Container(
                   decoration: BoxDecoration(
                     color: index.isEven
@@ -1614,7 +1625,7 @@ class _InventoryDashboardState extends State<InventoryScreen> {
               children: [
                 Flexible(
                   child: Text(
-                    'Showing 1 - ${filteredRestockItems.length} of ${filteredRestockItems.length}',
+                    'Showing ${restockStartIndex + 1} - ${restockEndIndex} of ${filteredRestockItems.length}',
                     style: TextStyle(color: Colors.grey[600]),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1626,13 +1637,21 @@ class _InventoryDashboardState extends State<InventoryScreen> {
                     shrinkWrap: true,
                     scrollDirection: Axis.horizontal,
                     children: [
-                      _buildPaginationButton('Previous', false, () {}),
-                      _buildPaginationNumberButton('1', true, () {}),
-                      if ((filteredRestockItems.length / 5).ceil() > 1)
-                        _buildPaginationNumberButton('2', false, () {}),
-                      if ((filteredRestockItems.length / 5).ceil() > 2)
-                        _buildPaginationNumberButton('3', false, () {}),
-                      _buildPaginationButton('Next', false, () {}),
+                      _buildPaginationButton('Previous', _restockCurrentPage > 0, () {
+                        setState(() {
+                          _restockCurrentPage--;
+                        });
+                      }),
+                      ..._buildPageNumberButtons(_restockCurrentPage, restockTotalPages, (i) {
+                        setState(() {
+                          _restockCurrentPage = i;
+                        });
+                      }),
+                      _buildPaginationButton('Next', _restockCurrentPage < restockTotalPages - 1, () {
+                        setState(() {
+                          _restockCurrentPage++;
+                        });
+                      }),
                     ],
                   ),
                 ),
@@ -1696,6 +1715,29 @@ class _InventoryDashboardState extends State<InventoryScreen> {
         ),
       ),
     );
+  }
+
+  // Helper for pagination buttons (5 max)
+  List<Widget> _buildPageNumberButtons(int currentPage, int totalPages, Function(int) onTap) {
+    List<Widget> buttons = [];
+    int startPage = 0;
+    int endPage = totalPages - 1;
+    if (totalPages > 5) {
+      if (currentPage <= 2) {
+        startPage = 0;
+        endPage = 4;
+      } else if (currentPage >= totalPages - 3) {
+        startPage = totalPages - 5;
+        endPage = totalPages - 1;
+      } else {
+        startPage = currentPage - 2;
+        endPage = currentPage + 2;
+      }
+    }
+    for (int i = startPage; i <= endPage && i < totalPages; i++) {
+      buttons.add(_buildPaginationNumberButton((i + 1).toString(), i == currentPage, () => onTap(i)));
+    }
+    return buttons;
   }
 }
 
