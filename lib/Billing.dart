@@ -1263,7 +1263,7 @@ Total: Rs ${_grandTotal.toStringAsFixed(2)}''',
         return;
       }
 
-      if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
         // Desktop: Use FilePicker
         String? outputFile = await FilePicker.platform.saveFile(
           dialogTitle: 'Please select an output file:',
