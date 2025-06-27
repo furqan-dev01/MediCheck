@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../Billing.dart';
+import 'settings_screen.dart';
 
 class OrderScreen extends StatefulWidget {
   final Function(String customerName, List<Map<String, dynamic>> medicines,
@@ -20,6 +21,10 @@ class _OrderScreenState extends State<OrderScreen> {
   List<Map<String, dynamic>> _activeOrders = [];
   bool _isLoadingDrivers = true;
   bool _isLoadingOrders = true;
+  bool _isLoadingDeliveryStatus = true;
+  bool _deliveryStatus = true;
+  String _userFullName = 'User';
+  String _userEmail = 'user@example.com';
   Timer? _orderRefreshTimer;
   int _totalDeliveries = 0;
   int _activeDriversCount = 0;
@@ -27,6 +32,8 @@ class _OrderScreenState extends State<OrderScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchUserInfo();
+    _fetchDeliveryStatus();
     _fetchActiveDrivers();
     _fetchActiveOrdersFromFirestore();
     _startOrderRefreshTimer();
@@ -45,7 +52,45 @@ class _OrderScreenState extends State<OrderScreen> {
       _fetchActiveOrdersFromFirestore();
       _fetchTotalDeliveries();
       _fetchActiveDriversCount();
+      _fetchDeliveryStatus();
     });
+  }
+
+  Future<void> _fetchDeliveryStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _isLoadingDeliveryStatus = false;
+        _deliveryStatus = false;
+      });
+      return;
+    }
+
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() ?? {};
+        setState(() {
+          _deliveryStatus = data['deliveryStatus'] ?? false;
+          _isLoadingDeliveryStatus = false;
+        });
+      } else {
+        setState(() {
+          _deliveryStatus = false;
+          _isLoadingDeliveryStatus = false;
+        });
+      }
+    } catch (e) {
+      print('Error fetching delivery status: $e');
+      setState(() {
+        _deliveryStatus = false;
+        _isLoadingDeliveryStatus = false;
+      });
+    }
   }
 
   Future<void> _fetchTotalDeliveries() async {
@@ -353,9 +398,158 @@ class _OrderScreenState extends State<OrderScreen> {
     }
   }
 
+  Future<void> _fetchUserInfo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      _userEmail = user.email ?? 'user@example.com';
+    });
+
+    // Try to get display name from FirebaseAuth first
+    if (user.displayName != null && user.displayName!.isNotEmpty) {
+      setState(() {
+        _userFullName = user.displayName!;
+      });
+    } else {
+      // If display name is not available, try to fetch from Firestore
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .get();
+
+        if (userDoc.exists && userDoc.data() != null && userDoc.data()!['fullName'] != null) {
+          setState(() {
+            _userFullName = userDoc.data()!['fullName'];
+          });
+        }
+      } catch (e) {
+        print('Error fetching user full name from Firestore: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     int totalOrders = _activeOrders.length + _totalDeliveries;
+    
+    // Show loading state while fetching delivery status
+    if (_isLoadingDeliveryStatus) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F3F8),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    // Show locked state when delivery is disabled
+    if (!_deliveryStatus) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF0F3F8),
+        body: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.lock,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  SizedBox(height: 24),
+                  Text(
+                    'Delivery Service Disabled',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Order management is currently locked because delivery service is turned off.\n\nWhen delivery is disabled:\n• New orders cannot be processed\n• Existing orders cannot be modified\n• Driver management is restricted',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 24),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Enable delivery in Settings to unlock',
+                          style: TextStyle(
+                            color: Colors.orange[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          _fetchDeliveryStatus();
+                        },
+                        icon: Icon(Icons.refresh),
+                        label: Text('Refresh Status'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[600],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => SettingsScreen(
+                                fullName: _userFullName,
+                                email: _userEmail,
+                              ),
+                            ),
+                          );
+                          _fetchDeliveryStatus();
+                        },
+                        icon: Icon(Icons.settings),
+                        label: Text('Go to Settings'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2A3467),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Normal order screen when delivery is enabled
     return Scaffold(
       backgroundColor: const Color(0xFFF0F3F8),
       body: Container(
@@ -365,6 +559,48 @@ class _OrderScreenState extends State<OrderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Delivery Status Indicator
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        'Delivery Service: ENABLED',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Spacer(),
+                      TextButton(
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => SettingsScreen(
+                                fullName: _userFullName,
+                                email: _userEmail,
+                              ),
+                            ),
+                          );
+                          _fetchDeliveryStatus();
+                        },
+                        child: Text(
+                          'Settings',
+                          style: TextStyle(color: Colors.green[700]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 20),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
