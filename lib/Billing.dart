@@ -356,12 +356,12 @@ class _POSScreenState extends State<POSScreen> with TickerProviderStateMixin {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text('Bill ${index + 1}',
-                                style: const TextStyle(fontSize: 14)),
+                                style: TextStyle(fontSize: 14)),
                             IconButton(
-                              icon: const Icon(Icons.close, size: 16),
+                              icon: Icon(Icons.close, size: 16),
                               onPressed: () => _closeBillTab(index),
-                              padding: const EdgeInsets.only(left: 8),
-                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.only(left: 8),
+                              constraints: BoxConstraints(),
                             ),
                           ],
                         ),
@@ -426,13 +426,13 @@ class _POSScreenState extends State<POSScreen> with TickerProviderStateMixin {
                           topRight: Radius.circular(3),
                         ),
                       ),
-                      child: const Row(
-                        children: [
+                      child: Row(
+                        children: const [
                           Icon(Icons.search, color: Colors.white, size: 16),
                           SizedBox(width: 6),
                           Text('Search product',
                               style:
-                              TextStyle(color: Colors.white, fontSize: 13)),
+                                  TextStyle(color: Colors.white, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -457,26 +457,26 @@ class _POSScreenState extends State<POSScreen> with TickerProviderStateMixin {
                         constraints: const BoxConstraints(maxHeight: 200),
                         child: _searchResults.isEmpty
                             ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text('No medicines found'),
-                          ),
-                        )
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Text('No medicines found'),
+                                ),
+                              )
                             : ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _searchResults.length,
-                          itemBuilder: (context, index) {
-                            final product = _searchResults[index];
-                            return ListTile(
-                              title: Text(product.name),
-                              subtitle: Text(
-                                'Price: ${product.price.toStringAsFixed(2)} | Stock: ${product.quantity}',
-                                style: const TextStyle(fontSize: 12),
+                                shrinkWrap: true,
+                                itemCount: _searchResults.length,
+                                itemBuilder: (context, index) {
+                                  final product = _searchResults[index];
+                                  return ListTile(
+                                    title: Text(product.name),
+                                    subtitle: Text(
+                                      'Price: ${product.price.toStringAsFixed(2)} | Stock: ${product.quantity}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                    onTap: () => _selectMedicine(product),
+                                  );
+                                },
                               ),
-                              onTap: () => _selectMedicine(product),
-                            );
-                          },
-                        ),
                       ),
                   ],
                 ),
@@ -503,13 +503,13 @@ class _POSScreenState extends State<POSScreen> with TickerProviderStateMixin {
                           topRight: Radius.circular(3),
                         ),
                       ),
-                      child: const Row(
-                        children: [
+                      child: Row(
+                        children: const [
                           Icon(Icons.person, color: Colors.white, size: 16),
                           SizedBox(width: 6),
                           Text('Customer Name',
                               style:
-                              TextStyle(color: Colors.white, fontSize: 13)),
+                                  TextStyle(color: Colors.white, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -556,7 +556,8 @@ class _POSScreenState extends State<POSScreen> with TickerProviderStateMixin {
                 onPressed: _addItemToBill),
             const SizedBox(width: 12),
             _buildActionButton('Delete Item', Colors.red,
-                onPressed: () => _deleteItemFromBill(_selectedProducts.length - 1)),
+                onPressed: () => _deleteItemFromBill(_selectedProducts.length -
+                    1)), // Deletes the last item for now
           ],
         ),
       ],
